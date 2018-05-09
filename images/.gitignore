@@ -1,0 +1,7 @@
+*
+!presidents
+!male
+!female
+presidents/points/*
+!male/points/*
+!female/points/*
