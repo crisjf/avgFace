@@ -1,14 +1,9 @@
-#!/usr/bin/env python
-
-# Copyright (c) 2016 Satya Mallick <spmallick@learnopencv.com>
-# All rights reserved. No warranty, explicit or implicit, provided.
-
-
-import os
+import argparse,os
+import imutils
 import cv2
 import numpy as np
 import math
-import sys
+from scipy.spatial import Delaunay
 
 # Read points from text files in directory
 def readPoints(path) :
@@ -16,7 +11,8 @@ def readPoints(path) :
     pointsArray = [];
 
     #List all files in the directory and read points from text files one by one
-    for filePath in os.listdir(path):
+    pointFiles = sorted(os.listdir(os.path.join(path,'points')))
+    for filePath in pointFiles:
         
         if filePath.endswith(".txt"):
             
@@ -24,7 +20,7 @@ def readPoints(path) :
             points = [];            
             
             # Read points from filePath
-            with open(os.path.join(path, filePath)) as file :
+            with open(os.path.join(os.path.join(path,'points'), filePath)) as file :
                 for line in file :
                     x, y = line.split()
                     points.append((int(x), int(y)))
@@ -41,10 +37,12 @@ def readImages(path) :
     imagesArray = [];
     
     #List all files in the directory and read points from text files one by one
-    for filePath in os.listdir(path):
+    imageFiles = sorted(os.listdir(path))
+    for filePath in imageFiles:
         if filePath.endswith(".jpg"):
             # Read image found.
             img = cv2.imread(os.path.join(path,filePath));
+            img = imutils.resize(img, width=600)
 
             # Convert to floating point
             img = np.float32(img)/255.0;
@@ -93,45 +91,10 @@ def rectContains(rect, point) :
     return True
 
 # Calculate delanauy triangle
-def calculateDelaunayTriangles(rect, points):
-    # Create subdiv
-    subdiv = cv2.Subdiv2D(rect);
-   
-    # Insert points into subdiv
-    for p in points:
-        subdiv.insert((p[0], p[1]));
-
-   
-    # List of triangles. Each triangle is a list of 3 points ( 6 numbers )
-    triangleList = subdiv.getTriangleList();
-
-    # Find the indices of triangles in the points array
-
-    delaunayTri = []
-    
-    for t in triangleList:
-        pt = []
-        pt.append((t[0], t[1]))
-        pt.append((t[2], t[3]))
-        pt.append((t[4], t[5]))
-        
-        pt1 = (t[0], t[1])
-        pt2 = (t[2], t[3])
-        pt3 = (t[4], t[5])        
-        
-        if rectContains(rect, pt1) and rectContains(rect, pt2) and rectContains(rect, pt3):
-            ind = []
-            for j in xrange(0, 3):
-                for k in xrange(0, len(points)):                    
-                    if(abs(pt[j][0] - points[k][0]) < 1.0 and abs(pt[j][1] - points[k][1]) < 1.0):
-                        ind.append(k)                            
-            if len(ind) == 3:                                                
-                delaunayTri.append((ind[0], ind[1], ind[2]))
-        
-
-    
-    return delaunayTri
-
+def calculateDelaunayTriangles(points):
+    tri = Delaunay(points)
+    tri = tri.simplices.copy()
+    return tri
 
 def constrainPoint(p, w, h) :
     p =  ( min( max( p[0], 0 ) , w - 1 ) , min( max( p[1], 0 ) , h - 1 ) )
@@ -189,8 +152,12 @@ def warpTriangle(img1, img2, t1, t2) :
 
 
 if __name__ == '__main__' :
-    
-    path = 'presidents/'
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--dir", required=True,help="path images")
+    ap.add_argument("--out", required=True,help="name of outfile")
+    args = vars(ap.parse_args())
+    path = os.path.join('images',args['dir'])
     
     # Dimensions of output image
     w = 600;
@@ -201,6 +168,7 @@ if __name__ == '__main__' :
     
     # Read all images
     images = readImages(path);
+    print "Number of images:",len(images)
     
     # Eye corners
     eyecornerDst = [ (np.int(0.3 * w ), np.int(h / 3)), (np.int(0.7 * w ), np.int(h / 3)) ];
@@ -249,13 +217,11 @@ if __name__ == '__main__' :
         
         pointsNorm.append(points);
         imagesNorm.append(img);
-    
 
-    
     # Delaunay triangulation
     rect = (0, 0, w, h);
-    dt = calculateDelaunayTriangles(rect, np.array(pointsAvg));
-
+    dt = calculateDelaunayTriangles(np.array(pointsAvg));
+    
     # Output image
     output = np.zeros((h,w,3), np.float32());
 
@@ -284,10 +250,14 @@ if __name__ == '__main__' :
         # Add image intensities for averaging
         output = output + img;
 
-
     # Divide by numImages to get average
     output = output / numImages;
+
+    # Save result
+    print "Result saved to:",os.path.join('output',args['out']+".jpg")
+    cv2.imwrite(os.path.join('output',args['out']+".jpg"), 255 * output); 
 
     # Display result
     cv2.imshow('image', output);
     cv2.waitKey(0);
+
