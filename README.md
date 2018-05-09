@@ -38,5 +38,3 @@ python faceAverage.py --dir presidents --out avg_president
 ```
 
 
-
-
