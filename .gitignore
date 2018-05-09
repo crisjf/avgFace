@@ -1,2 +1,6 @@
 *.ipynb
 .ipynb_checkpoints/*
+.DS_Store
+images/.DS_Store
+output/.DS_Store
+predictors/.DS_Store
