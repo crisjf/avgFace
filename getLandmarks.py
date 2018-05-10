@@ -7,9 +7,13 @@ import cv2
 # construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("--dir", required=True,help="path images")
+ap.add_argument("--predictor", required=False,help="path images")
 args = vars(ap.parse_args())
 
-predictor_path = 'predictors/shape_predictor_68_face_landmarks.dat'
+if args['predictor'] is None:
+	predictor_path = 'predictors/shape_predictor_68_face_landmarks.dat'
+else:
+	predictor_path = os.path.join('predictors',args['predictor'])
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(predictor_path)
 
@@ -28,7 +32,7 @@ for ifile in imageFiles:
 	image = cv2.imread(os.path.join(path,ifile))
 	image = imutils.resize(image, width=600)
 	gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-	 
+
 	# detect faces in the grayscale image
 	rects = detector(gray, 1)
 
